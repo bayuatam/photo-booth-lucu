@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="page-title">Kawaii Photo Booth & Polaroid Maker 📸</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Fredoka:wght@500;600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: linear-gradient(180deg, #ffe5ec 0%, #fff0f6 50%, #f3e8ff 100%);
+      color: #4a2545;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, .font-cute {
+      font-family: 'Fredoka', sans-serif;
+    }
+
+    .font-handwriting {
+      font-family: 'Caveat', cursive;
+    }
+
+    .kawaii-card {
+      background: rgba(255, 255, 255, 0.92);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      border: 2px solid #ffffff;
+      border-radius: 28px;
+      box-shadow: 0 12px 30px rgba(255, 92, 138, 0.14);
+    }
+
+    .btn-pill {
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.2s ease;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .btn-pill:active {
+      transform: scale(0.95);
+    }
+
+    .pill-active {
+      background-color: #ff5c8a !important;
+      color: #ffffff !important;
+      border-color: #ff5c8a !important;
+      box-shadow: 0 6px 14px rgba(255, 92, 138, 0.32);
+    }
+
+    /* Kamera Viewfinder */
+    .mirror-video {
+      transform: scaleX(-1);
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Efek Flash Kamera */
+    @keyframes cameraFlash {
+      0% { opacity: 0.95; }
+      100% { opacity: 0; }
+    }
+
+    .flash-active {
+      animation: cameraFlash 0.45s ease-out forwards;
+    }
+
+    /* Partikel Latar */
+    .bg-sparkle {
+      position: fixed;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.55;
+      animation: floatSparkle 8s ease-in-out infinite;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    @keyframes floatSparkle {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-18px) rotate(12deg); }
+    }
+  </style>
+</head>
+<body class="pb-16">
+
+  <!-- Dekorasi Latar Belakang -->
+  <div class="bg-sparkle top-8 left-5 text-2xl">📸</div>
+  <div class="bg-sparkle top-24 right-6 text-2xl">🌸</div>
+  <div class="bg-sparkle bottom-20 left-6 text-2xl">💖</div>
+  <div class="bg-sparkle bottom-12 right-8 text-2xl">✨</div>
+
+  <!-- Flash Layar Saat Jepret -->
+  <div id="camera-flash-overlay" class="fixed inset-0 bg-white pointer-events-none opacity-0 z-50"></div>
+
+  <main class="relative z-10 max-w-xl mx-auto px-4 pt-6 space-y-5">
+
+    <!-- Header -->
+    <header class="text-center space-y-2">
+      <div class="inline-flex items-center gap-2 bg-white/90 px-4 py-1.5 rounded-full shadow-xs border border-pink-100 text-xs font-bold text-pink-600">
+        <span>🎞️ Purikura & Polaroid Studio</span>
+        <span>•</span>
+        <button id="sound-btn" onclick="toggleSound()" class="underline hover:text-pink-800">🔊 Suara: On</button>
+      </div>
+      <h1 id="main-title" class="text-3xl sm:text-4xl font-bold text-pink-600 drop-shadow-xs">
+        Photo Booth Khusus Anin 📸
+      </h1>
+      <p class="text-xs sm:text-sm font-semibold text-purple-900/75 max-w-md mx-auto">
+        Bilik foto gemas khusus buat Anin! Ambil 3–8 pose lucu beruntun, pakai aksesoris & stiker imut, lalu simpan strip Polaroid-nya!
+      </p>
+    </header>
+
+    <!-- ===================================================================
+         1. BILIK KAMERA & UPLOAD FOTO
+    ==================================================================== -->
+    <section class="kawaii-card p-5 space-y-4">
+      <!-- Pilih Sumber Foto -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex gap-1.5">
+          <button id="tab-camera" onclick="switchInputMode('camera')" class="pill-active btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3.5 py-2 rounded-full">
+            📷 Kamera Live
+          </button>
+          <button id="tab-upload" onclick="switchInputMode('upload')" class="btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3.5 py-2 rounded-full">
+            🖼️ Galeri / Demo
+          </button>
+        </div>
+
+        <!-- Pilih Jumlah Pose (3, 4, 6, atau 8 Foto) -->
+        <div class="flex items-center gap-1 bg-pink-50 p-1 rounded-full border border-pink-100">
+          <button data-pcount="3" onclick="setPoseCount(3)" class="pose-count-btn pill-active btn-pill text-[11px] font-bold px-2.5 py-1 rounded-full text-pink-700">
+            3 Foto
+          </button>
+          <button data-pcount="4" onclick="setPoseCount(4)" class="pose-count-btn btn-pill text-[11px] font-bold px-2.5 py-1 rounded-full text-pink-700">
+            4 Foto
+          </button>
+          <button data-pcount="6" onclick="setPoseCount(6)" class="pose-count-btn btn-pill text-[11px] font-bold px-2.5 py-1 rounded-full text-pink-700">
+            6 (2×3)
+          </button>
+          <button data-pcount="8" onclick="setPoseCount(8)" class="pose-count-btn btn-pill text-[11px] font-bold px-2.5 py-1 rounded-full text-pink-700">
+            8 (2×4)
+          </button>
+        </div>
+      </div>
+
+      <!-- AREA KAMERA LIVE -->
+      <div id="camera-panel" class="space-y-3">
+        <div class="relative w-full aspect-[4/3] bg-pink-950 rounded-2xl overflow-hidden border-4 border-white shadow-md flex items-center justify-center">
+          <video id="camera-video" autoplay playsinline muted class="w-full h-full object-cover mirror-video"></video>
+
+          <!-- Kanvas Overlay Aksesoris Kamera Live -->
+          <canvas id="camera-prop-overlay" width="640" height="480" class="absolute inset-0 w-full h-full pointer-events-none z-[5]"></canvas>
+
+          <!-- Overlay Hitung Mundur -->
+          <div id="countdown-overlay" class="hidden absolute inset-0 bg-pink-950/35 flex flex-col items-center justify-center text-white">
+            <span id="countdown-number" class="font-cute text-7xl font-bold drop-shadow-lg">3</span>
+            <span id="countdown-label" class="text-sm font-bold bg-pink-500/90 px-3 py-1 rounded-full mt-2">Siap-siap pose 1!</span>
+          </div>
+
+          <!-- Pesan Status Kamera -->
+          <div id="camera-fallback-box" class="hidden absolute inset-0 bg-pink-50 p-5 flex flex-col items-center justify-center text-center space-y-3">
+            <div class="text-4xl">📷✨</div>
+            <p id="camera-status-text" class="text-xs sm:text-sm font-bold text-pink-700 max-w-xs">
+              Kamera belum aktif atau izin kamera belum diberikan. Kamu bisa klik tombol di bawah atau pakai foto dari galeri!
+            </p>
+            <div class="flex flex-wrap justify-center gap-2">
+              <button onclick="startCamera()" class="btn-pill bg-pink-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow">
+                🔄 Aktifkan Kamera
+              </button>
+              <button onclick="loadCuteDemoPoses()" class="btn-pill bg-amber-400 text-amber-950 text-xs font-bold px-4 py-2 rounded-full shadow">
+                🎨 Coba Pose Demo Lucu
+              </button>
+            </div>
+          </div>
+
+          <!-- Tombol Kontrol Cepat di Atas Video -->
+          <div class="absolute top-2.5 right-2.5 flex gap-1.5 z-10">
+            <button onclick="toggleMirror()" title="Balik Cermin" class="btn-pill bg-white/85 hover:bg-white text-pink-700 text-xs font-bold px-2.5 py-1.5 rounded-full shadow">
+              🪞 Mirror
+            </button>
+            <button onclick="flipCameraFacing()" title="Ganti Kamera Depan/Belakang" class="btn-pill bg-white/85 hover:bg-white text-pink-700 text-xs font-bold px-2.5 py-1.5 rounded-full shadow">
+              🔄 Balik
+            </button>
+          </div>
+
+          <!-- Lencana Slot Aktif -->
+          <div class="absolute bottom-2.5 left-2.5 bg-white/90 text-pink-700 text-[11px] font-bold px-3 py-1 rounded-full shadow z-10">
+            Target: <span id="active-slot-badge">Pose #1</span>
+          </div>
+        </div>
+
+        <!-- Pilihan Aksesoris Kamera Live (Booth Props) -->
+        <div class="space-y-1.5 bg-pink-50/80 p-2.5 rounded-2xl border border-pink-100">
+          <div class="flex items-center justify-between text-[11px] font-bold text-pink-700 px-1">
+            <span>🎭 Aksesoris Kepala & Wajah di Kamera:</span>
+            <span id="active-prop-label" class="text-purple-700">Polos</span>
+          </div>
+          <div id="camera-props-bar" class="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5"></div>
+        </div>
+
+        <!-- Pilihan Timer & Tombol Jepret -->
+        <div class="flex items-center justify-between gap-2 text-xs">
+          <span class="font-bold text-purple-900/75">⏱️ Timer:</span>
+          <div class="flex gap-1.5">
+            <button data-timer="0" onclick="setTimerSeconds(0)" class="timer-btn btn-pill bg-pink-100 text-pink-700 font-bold px-3 py-1 rounded-full">Instan</button>
+            <button data-timer="3" onclick="setTimerSeconds(3)" class="timer-btn pill-active btn-pill bg-pink-100 text-pink-700 font-bold px-3 py-1 rounded-full">3 Detik</button>
+            <button data-timer="5" onclick="setTimerSeconds(5)" class="timer-btn btn-pill bg-pink-100 text-pink-700 font-bold px-3 py-1 rounded-full">5 Detik</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <button id="auto-session-btn" onclick="startAutoBoothSession()" class="btn-pill bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-xs sm:text-sm py-3 px-3 rounded-2xl shadow-md">
+            ✨ Auto Foto Beruntun
+          </button>
+          <button id="single-snap-btn" onclick="captureSinglePose()" class="btn-pill bg-pink-100 hover:bg-pink-200 text-pink-700 font-bold text-xs sm:text-sm py-3 px-3 rounded-2xl">
+            📸 Jepret 1 Pose
+          </button>
+        </div>
+      </div>
+
+      <!-- AREA GALERI / DEMO -->
+      <div id="upload-panel" class="hidden bg-pink-50/80 border-2 border-dashed border-pink-200 rounded-2xl p-4 text-center space-y-3">
+        <p class="text-xs sm:text-sm font-bold text-pink-700">
+          Pilih hingga 8 foto sekaligus dari galeri HP kamu, atau isi otomatis pakai karakter lucu!
+        </p>
+        <div class="flex flex-col sm:flex-row gap-2 justify-center">
+          <label class="btn-pill flex-1 bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs sm:text-sm py-3 px-4 rounded-2xl shadow cursor-pointer">
+            📂 Pilih Foto dari Galeri
+            <input id="gallery-input" type="file" accept="image/*" multiple onchange="handleGalleryUpload(event)" class="hidden" />
+          </label>
+          <button onclick="loadCuteDemoPoses()" class="btn-pill flex-1 bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold text-xs sm:text-sm py-3 px-4 rounded-2xl shadow">
+            🎨 Isi Pose Ilustrasi Lucu
+          </button>
+        </div>
+      </div>
+
+      <!-- Thumbnail Slot Pose (Klik slot untuk pilih pose yang mau diulang) -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between text-[11px] font-bold text-purple-900/70">
+          <span>Ketuk nomor pose jika ingin mengulang pose tertentu:</span>
+          <button onclick="clearAllPoses()" class="text-rose-600 underline">Reset Foto</button>
+        </div>
+        <div id="pose-slots-bar" class="grid grid-cols-4 gap-2"></div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         2. STUDIO HIAS STRIP POLAROID (BINGKAI, FILTER, STIKER & CAPTION)
+    ==================================================================== -->
+    <section class="kawaii-card p-5 space-y-4">
+      <div class="text-center">
+        <h2 class="text-xl font-bold text-pink-600">🎞️ Hasil Strip Polaroid Kamu</h2>
+        <p class="text-xs text-purple-900/70 font-semibold">Geser stiker langsung di atas strip foto untuk mengatur posisinya!</p>
+      </div>
+
+      <!-- Kanvas Strip Polaroid -->
+      <div class="flex justify-center bg-pink-50/70 p-4 rounded-3xl border border-pink-100">
+        <canvas id="polaroid-canvas" width="600" height="1540" class="w-full max-w-[280px] h-auto rounded-2xl shadow-xl cursor-grab active:cursor-grabbing touch-none"></canvas>
+      </div>
+
+      <!-- Pilih Warna / Motif Bingkai -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-bold text-pink-700">🎨 Pilih Bingkai Keren & Lucu (18 Gaya):</label>
+          <span id="active-frame-name" class="text-[11px] font-bold text-purple-700">Putih Klasik</span>
+        </div>
+        <div id="frame-styles-grid" class="flex flex-wrap gap-1.5"></div>
+      </div>
+
+      <!-- Pilih Efek Filter Foto -->
+      <div class="space-y-1.5">
+        <label class="block text-xs font-bold text-pink-700">✨ Efek Tone Warna Foto (8 Filter):</label>
+        <div class="flex flex-wrap gap-1.5">
+          <button data-filter="none" onclick="setPhotoFilter('none')" class="filter-btn pill-active btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-full">Natural</button>
+          <button data-filter="pastel" onclick="setPhotoFilter('pastel')" class="filter-btn btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-full">Soft Pastel</button>
+          <button data-filter="rose" onclick="setPhotoFilter('rose')" class="filter-btn btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-full">Peach Glow</button>
+          <button data-filter="sakura_dream" onclick="setPhotoFilter('sakura_dream')" class="filter-btn btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-full">🌸 Sakura Tint</button>
+          <button data-filter="vintage" onclick="setPhotoFilter('vintage')" class="filter-btn btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-full">Retro Warm</button>
+          <button data-filter="golden_hour" onclick="setPhotoFilter('golden_hour')" class="filter-btn btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-full">☀️ Golden Hour</button>
+          <button data-filter="cool_film" onclick="setPhotoFilter('cool_film')" class="filter-btn btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-full">❄️ Cool Film</button>
+          <button data-filter="bw" onclick="setPhotoFilter('bw')" class="filter-btn btn-pill bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-full">B&W Klasik</button>
+        </div>
+      </div>
+
+      <!-- Palet Stiker & Aksesoris Gemas -->
+      <div class="space-y-2 bg-pink-50/60 p-3 rounded-2xl border border-pink-100">
+        <div class="flex flex-wrap items-center justify-between gap-1">
+          <label class="text-xs font-bold text-pink-700">🧸 Pasang Stiker & Stempel:</label>
+          <div class="flex flex-wrap gap-1">
+            <button onclick="resizeSelectedSticker(12)" class="btn-pill text-[11px] font-bold bg-white border border-pink-200 text-pink-700 px-2 py-0.5 rounded-full">+ Besar</button>
+            <button onclick="resizeSelectedSticker(-12)" class="btn-pill text-[11px] font-bold bg-white border border-pink-200 text-pink-700 px-2 py-0.5 rounded-full">- Kecil</button>
+            <button onclick="rotateSelectedSticker(18)" class="btn-pill text-[11px] font-bold bg-white border border-pink-200 text-purple-700 px-2 py-0.5 rounded-full">🔄 Putar</button>
+            <button onclick="deleteSelectedSticker()" class="btn-pill text-[11px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">🗑️ Hapus</button>
+            <button onclick="clearAllStickers()" class="text-[11px] font-bold text-rose-600 underline px-1">Reset</button>
+          </div>
+        </div>
+
+        <!-- Tab Kategori Stiker -->
+        <div class="flex gap-1.5">
+          <button data-scat="cute" onclick="switchStickerCategory('cute')" class="scat-btn pill-active btn-pill bg-white text-pink-700 text-[11px] font-bold px-3 py-1 rounded-full border border-pink-200">
+            🧸 Lucu & Hewan
+          </button>
+          <button data-scat="y2k" onclick="switchStickerCategory('y2k')" class="scat-btn btn-pill bg-white text-pink-700 text-[11px] font-bold px-3 py-1 rounded-full border border-pink-200">
+            💿 Y2K & Aksesoris
+          </button>
+          <button data-scat="stamps" onclick="switchStickerCategory('stamps')" class="scat-btn btn-pill bg-white text-pink-700 text-[11px] font-bold px-3 py-1 rounded-full border border-pink-200">
+            💬 Stempel Kata
+          </button>
+        </div>
+
+        <div id="sticker-palette" class="grid grid-cols-6 gap-1.5"></div>
+      </div>
+
+      <!-- Tulisan Tangan & Stempel Tanggal -->
+      <div class="space-y-2 pt-1">
+        <div class="flex flex-wrap items-center justify-between gap-1">
+          <label for="strip-caption-input" class="text-xs font-bold text-pink-700">✍️ Tulisan di Bawah Strip:</label>
+          <div class="flex items-center gap-1">
+            <button data-cfont="hand" onclick="setCaptionFont('hand')" class="cfont-btn pill-active btn-pill text-[11px] font-bold bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full">Latin</button>
+            <button data-cfont="cute" onclick="setCaptionFont('cute')" class="cfont-btn btn-pill text-[11px] font-bold bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full">Bulat</button>
+            <button data-cfont="clean" onclick="setCaptionFont('clean')" class="cfont-btn btn-pill text-[11px] font-bold bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full">Rapi</button>
+            <button id="date-stamp-btn" onclick="toggleDateStamp()" class="text-[11px] font-bold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">
+              📅 Tanggal: On
+            </button>
+          </div>
+        </div>
+        <input
+          id="strip-caption-input"
+          type="text"
+          maxlength="34"
+          value="Anin's Cute Booth 💕"
+          oninput="renderPolaroidStrip()"
+          placeholder="Tulis catatan manis buat Anin..."
+          class="w-full px-4 py-2.5 rounded-2xl border-2 border-pink-200 focus:border-pink-500 focus:outline-none text-sm font-bold text-pink-800 bg-white"
+        />
+        <!-- Preset Caption Cepat -->
+        <div id="caption-presets-bar" class="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5"></div>
+      </div>
+
+      <!-- Tombol Download & Bagikan -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+        <button onclick="downloadPolaroidStrip()" class="btn-pill bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-sm py-3.5 px-4 rounded-2xl shadow-lg">
+          💾 Simpan Strip Polaroid
+        </button>
+        <button onclick="shareToWhatsApp()" class="btn-pill bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-sm py-3.5 px-4 rounded-2xl shadow-lg">
+          📲 Kirim Pesan ke WA
+        </button>
+      </div>
+    </section>
+
+    <footer class="text-center text-xs font-semibold text-purple-900/60">
+      Photo booth spesial buat Anin biar makin gemas & ceria 📸💖
+    </footer>
+  </main>
+
+  <script>
+    // =========================================================================
+    // KONFIGURASI DATA (KHUSUS BUAT ANIN)
+    // =========================================================================
+    const CONFIG = {
+      namaPacar: "Anin",
+      nomorWhatsApp: "6281278550573",
+      defaultCaption: "Anin's Cute Booth 💕",
+      captionPresets: [
+        "Anin's Cute Booth 💕",
+        "Anin Paling Gemas! 🥺💖",
+        "Pipi Anin Anti Bad Mood ✨",
+        "Anin & Best Moments 🧸",
+        "100% Anin Mode Imut 🌸",
+        "Bintangnya Photo Booth ⭐"
+      ],
+      cameraProps: [
+        { id: "none", icon: "❌", label: "Polos" },
+        { id: "cat_ears", icon: "🐱", label: "Kuping Kucing" },
+        { id: "bunny_ears", icon: "🐰", label: "Kuping Kelinci" },
+        { id: "flower_crown", icon: "🌸", label: "Mahkota Bunga" },
+        { id: "heart_glasses", icon: "😍", label: "Kacamata Hati" },
+        { id: "cool_shades", icon: "😎", label: "Kacamata Kece" },
+        { id: "bear_ears", icon: "🧸", label: "Kuping Beruang" },
+        { id: "angel_halo", icon: "😇", label: "Halo Malaikat" },
+        { id: "devil_horns", icon: "😈", label: "Tanduk Imut" }
+      ],
+      frameCatalog: [
+        { id: "white", label: "🤍 Putih", name: "Putih Klasik", cls: "bg-white border border-gray-200 text-gray-700" },
+        { id: "pink", label: "🌸 Pink", name: "Sakura Pink", cls: "bg-pink-100 text-pink-700" },
+        { id: "lavender", label: "💜 Lavender", name: "Lavender Dream", cls: "bg-purple-100 text-purple-700" },
+        { id: "blue", label: "🩵 Sky Blue", name: "Baby Sky Blue", cls: "bg-sky-100 text-sky-700" },
+        { id: "mint", label: "🍃 Mint", name: "Matcha Mint", cls: "bg-emerald-100 text-emerald-700" },
+        { id: "cream", label: "💛 Butter", name: "Butter Cream", cls: "bg-amber-100 text-amber-800" },
+        { id: "black", label: "🖤 Hitam", name: "Midnight Hitam", cls: "bg-gray-800 text-white" },
+        { id: "sunset", label: "🌅 Sunset", name: "Gradasi Sunset", cls: "bg-orange-100 text-orange-700" },
+        { id: "polka", label: "🍓 Polkadot", name: "Polkadot Stroberi", cls: "bg-rose-100 text-rose-700" },
+        { id: "gingham", label: "🏁 Gingham", name: "Gingham Piknik", cls: "bg-teal-100 text-teal-700" },
+        { id: "cherry", label: "🍒 Cherry", name: "Cherry Tart", cls: "bg-red-100 text-red-700" },
+        { id: "hearts", label: "💕 Hujan Hati", name: "Hujan Hati", cls: "bg-pink-100 text-rose-700" },
+        { id: "cow", label: "🐮 Cow Pastel", name: "Cow Print Pastel", cls: "bg-pink-50 border border-pink-200 text-gray-800" },
+        { id: "leopard", label: "🐆 Leopard", name: "Kawaii Leopard", cls: "bg-amber-100 text-amber-900" },
+        { id: "film", label: "🎞️ Roll Film", name: "Roll Film Bioskop", cls: "bg-zinc-900 text-amber-300" },
+        { id: "y2k", label: "💿 Y2K Holo", name: "Y2K Cyber Chrome", cls: "bg-indigo-100 text-indigo-700" },
+        { id: "neko", label: "🐱 Neko Ears", name: "Kuping Kucing & Pita", cls: "bg-rose-100 text-pink-700" },
+        { id: "newspaper", label: "📰 Daily Love", name: "Koran Cinta Vintage", cls: "bg-stone-200 text-stone-800" },
+        { id: "galaxy", label: "🌌 Galaxy", name: "Galaxy Starlight", cls: "bg-indigo-950 text-purple-200" }
+      ],
+      stickerCategories: {
+        cute: ["💖", "🌸", "🐱", "🐰", "🎀", "🍓", "🧸", "🐥", "🐼", "🦋", "🫧", "🍭"],
+        y2k: ["👑", "🕶️", "🎧", "✨", "💫", "💿", "🍒", "🧁", "💌", "💋", "🌈", "⚡"],
+        stamps: ["SO CUTE!", "LOVE YOU", "UWU 💖", "BESTIE", "XOXO", "100% IMUT", "DATE NIGHT", "MY FAV ✨", "GEMES!"]
+      }
+    };
+
+    // =========================================================================
+    // STATE APLIKASI
+    // =========================================================================
+    let soundOn = true;
+    let audioCtx = null;
+
+    let inputMode = "camera"; // 'camera' | 'upload'
+    let poseCount = 3; // 3 | 4 | 6 | 8
+    let activeSlot = 0; // 0..7
+    let photos = [null, null, null, null, null, null, null, null]; // Maksimal 8 foto
+
+    let mediaStream = null;
+    let isMirror = true;
+    let facingMode = "user"; // 'user' | 'environment'
+    let timerSeconds = 3;
+    let activeCameraProp = "none";
+    let propAnimFrame = null;
+
+    let frameStyle = "white";
+    let photoFilter = "none";
+    let captionFontStyle = "hand";
+    let showDateStamp = true;
+
+    let activeStickerCat = "cute";
+    let placedStickers = [];
+    let selectedStickerId = null;
+    let isDraggingSticker = false;
+    let dragOffset = { x: 0, y: 0 };
+    let isAutoRunning = false;
+
+    // =========================================================================
+    // EFEK SUARA (WEB AUDIO API - TANPA URL EKSTERNAL)
+    // =========================================================================
+    function toggleSound() {
+      soundOn = !soundOn;
+      const btn = document.getElementById("sound-btn");
+      if (btn) btn.innerText = soundOn ? "🔊 Suara: On" : "🔇 Suara: Off";
+    }
+
+    function playTone(freq = 660, duration = 0.14, type = "sine") {
+      if (!soundOn) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        // Abaikan jika browser membatasi audio otomatis
+      }
+    }
+
+    function playShutterSound() {
+      playTone(880, 0.08, "triangle");
+      setTimeout(() => playTone(1174.66, 0.16, "sine"), 70);
+    }
+
+    // =========================================================================
+    // KONTROL MODE INPUT, JUMLAH POSE & KAMERA LIVE
+    // =========================================================================
+    function switchInputMode(mode) {
+      inputMode = mode;
+      const tabCam = document.getElementById("tab-camera");
+      const tabUp = document.getElementById("tab-upload");
+      const panelCam = document.getElementById("camera-panel");
+      const panelUp = document.getElementById("upload-panel");
+
+      if (tabCam) tabCam.classList.toggle("pill-active", mode === "camera");
+      if (tabUp) tabUp.classList.toggle("pill-active", mode === "upload");
+      if (panelCam) panelCam.classList.toggle("hidden", mode !== "camera");
+      if (panelUp) panelUp.classList.toggle("hidden", mode !== "upload");
+
+      if (mode === "camera" && !mediaStream) {
+        startCamera();
+      }
+      playTone(620, 0.09);
+    }
+
+    function setPoseCount(count) {
+      poseCount = count;
+      if (activeSlot >= poseCount) activeSlot = 0;
+      document.querySelectorAll(".pose-count-btn").forEach((btn) => {
+        btn.classList.toggle("pill-active", Number(btn.dataset.pcount) === count);
+      });
+
+      renderPoseSlotsBar();
+      renderPolaroidStrip();
+      playTone(780, 0.1);
+    }
+
+    function selectSlot(idx) {
+      activeSlot = idx;
+      renderPoseSlotsBar();
+      playTone(600, 0.08);
+    }
+
+    function renderPoseSlotsBar() {
+      const bar = document.getElementById("pose-slots-bar");
+      const badge = document.getElementById("active-slot-badge");
+      if (badge) badge.innerText = `Pose #${activeSlot + 1}`;
+      if (!bar) return;
+
+      bar.innerHTML = "";
+      bar.className = poseCount === 3 ? "grid grid-cols-3 gap-2" : "grid grid-cols-4 gap-2";
+
+      for (let i = 0; i < poseCount; i++) {
+        const btn = document.createElement("button");
+        const isSelected = i === activeSlot;
+        const hasPhoto = Boolean(photos[i]);
+
+        btn.className = `btn-pill relative aspect-[4/3] rounded-xl overflow-hidden border-2 flex items-center justify-center text-xs font-bold ${
+          isSelected
+            ? "border-pink-500 ring-2 ring-pink-300 bg-pink-100 text-pink-700"
+            : "border-pink-200 bg-white text-pink-600"
+        }`;
+        btn.onclick = () => selectSlot(i);
+
+        if (hasPhoto) {
+          const thumb = document.createElement("img");
+          thumb.src = photos[i].toDataURL("image/jpeg", 0.7);
+          thumb.alt = `Pose ${i + 1}`;
+          thumb.className = "w-full h-full object-cover";
+          btn.appendChild(thumb);
+
+          const tag = document.createElement("span");
+          tag.className = "absolute bottom-1 right-1 bg-pink-500 text-white text-[10px] px-1.5 rounded-full shadow";
+          tag.innerText = `#${i + 1}`;
+          btn.appendChild(tag);
+        } else {
+          btn.innerText = `#${i + 1}`;
+        }
+
+        bar.appendChild(btn);
+      }
+    }
+
+    async function startCamera() {
+      const video = document.getElementById("camera-video");
+      const fallback = document.getElementById("camera-fallback-box");
+      if (!video) return;
+
+      try {
+        if (mediaStream) {
+          mediaStream.getTracks().forEach((t) => t.stop());
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Browser tidak mendukung kamera");
+        }
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        });
+        video.srcObject = mediaStream;
+        if (fallback) fallback.classList.add("hidden");
+        startPropOverlayLoop();
+      } catch (err) {
+        if (fallback) fallback.classList.remove("hidden");
+        startPropOverlayLoop();
+      }
+    }
+
+    function toggleMirror() {
+      isMirror = !isMirror;
+      const video = document.getElementById("camera-video");
+      if (video) {
+        video.classList.toggle("mirror-video", isMirror);
+      }
+      playTone(650, 0.08);
+    }
+
+    function flipCameraFacing() {
+      facingMode = facingMode === "user" ? "environment" : "user";
+      isMirror = facingMode === "user";
+      const video = document.getElementById("camera-video");
+      if (video) {
+        video.classList.toggle("mirror-video", isMirror);
+      }
+      startCamera();
+      playTone(720, 0.1);
+    }
+
+    function setTimerSeconds(sec) {
+      timerSeconds = sec;
+      document.querySelectorAll(".timer-btn").forEach((btn) => {
+        btn.classList.toggle("pill-active", Number(btn.dataset.timer) === sec);
+      });
+      playTone(680, 0.08);
+    }
+
+    // =========================================================================
+    // AKSESORIS KAMERA LIVE (BOOTH PROPS)
+    // =========================================================================
+    function initCameraPropsBar() {
+      const bar = document.getElementById("camera-props-bar");
+      if (!bar) return;
+      bar.innerHTML = "";
+      CONFIG.cameraProps.forEach((prop) => {
+        const btn = document.createElement("button");
+        btn.dataset.propid = prop.id;
+        btn.className = `cam-prop-btn btn-pill shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border border-pink-200 bg-white text-pink-700 ${
+          prop.id === activeCameraProp ? "pill-active" : ""
+        }`;
+        btn.innerText = `${prop.icon} ${prop.label}`;
+        btn.onclick = () => selectCameraProp(prop.id, prop.label);
+        bar.appendChild(btn);
+      });
+    }
+
+    function selectCameraProp(propId, labelText) {
+      activeCameraProp = propId;
+      const lbl = document.getElementById("active-prop-label");
+      if (lbl) lbl.innerText = labelText;
+      document.querySelectorAll(".cam-prop-btn").forEach((btn) => {
+        btn.classList.toggle("pill-active", btn.dataset.propid === propId);
+      });
+      playTone(760, 0.09);
+    }
+
+    function drawCameraProp(ctx, w, h, propId) {
+      if (!propId || propId === "none") return;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      if (propId === "cat_ears") {
+        // Kuping kucing pink di bagian atas kepala
+        ctx.fillStyle = "#fff8f0";
+        ctx.strokeStyle = "#ff5c8a";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.28, h * 0.25);
+        ctx.lineTo(w * 0.22, h * 0.06);
+        ctx.lineTo(w * 0.40, h * 0.18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(w * 0.72, h * 0.25);
+        ctx.lineTo(w * 0.78, h * 0.06);
+        ctx.lineTo(w * 0.60, h * 0.18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Kumis & pipi merona
+        ctx.fillStyle = "rgba(255, 117, 143, 0.42)";
+        ctx.beginPath();
+        ctx.ellipse(w * 0.31, h * 0.62, 26, 14, 0, 0, Math.PI * 2);
+        ctx.ellipse(w * 0.69, h * 0.62, 26, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (propId === "bunny_ears") {
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#ff8fa3";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.ellipse(w * 0.37, h * 0.14, 22, 62, -0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.ellipse(w * 0.63, h * 0.14, 22, 62, 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#ffc2d1";
+        ctx.beginPath();
+        ctx.ellipse(w * 0.37, h * 0.15, 10, 42, -0.15, 0, Math.PI * 2);
+        ctx.ellipse(w * 0.63, h * 0.15, 10, 42, 0.15, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (propId === "flower_crown") {
+        const flowers = ["🌸", "🌼", "🌷", "🌺", "🌸"];
+        flowers.forEach((fl, i) => {
+          ctx.font = "46px sans-serif";
+          ctx.fillText(fl, w * (0.28 + i * 0.11), h * 0.17 + Math.abs(i - 2) * 8);
+        });
+      } else if (propId === "heart_glasses") {
+        ctx.font = "78px sans-serif";
+        ctx.fillText("💖", w * 0.38, h * 0.46);
+        ctx.fillText("💖", w * 0.62, h * 0.46);
+        ctx.strokeStyle = "#ff4d6d";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.45, h * 0.46);
+        ctx.lineTo(w * 0.55, h * 0.46);
+        ctx.stroke();
+      } else if (propId === "cool_shades") {
+        ctx.fillStyle = "#1b1b2f";
+        ctx.strokeStyle = "#ff758f";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.roundRect(w * 0.27, h * 0.39, w * 0.19, h * 0.13, 14);
+        ctx.roundRect(w * 0.54, h * 0.39, w * 0.19, h * 0.13, 14);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(w * 0.46, h * 0.44);
+        ctx.lineTo(w * 0.54, h * 0.44);
+        ctx.stroke();
+      } else if (propId === "bear_ears") {
+        ctx.fillStyle = "#b07d62";
+        ctx.beginPath();
+        ctx.arc(w * 0.30, h * 0.16, 36, 0, Math.PI * 2);
+        ctx.arc(w * 0.70, h * 0.16, 36, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#edc4b3";
+        ctx.beginPath();
+        ctx.arc(w * 0.30, h * 0.16, 18, 0, Math.PI * 2);
+        ctx.arc(w * 0.70, h * 0.16, 18, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (propId === "angel_halo") {
+        ctx.strokeStyle = "#ffd166";
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.ellipse(w * 0.5, h * 0.11, 88, 22, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (propId === "devil_horns") {
+        ctx.font = "62px sans-serif";
+        ctx.fillText("😈", w * 0.5, h * 0.13);
+      }
+
+      ctx.restore();
+    }
+
+    function startPropOverlayLoop() {
+      if (propAnimFrame) cancelAnimationFrame(propAnimFrame);
+      function loop() {
+        const canvas = document.getElementById("camera-prop-overlay");
+        if (canvas) {
+          const ctx = canvas.getContext("2d");
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          drawCameraProp(ctx, canvas.width, canvas.height, activeCameraProp);
+        }
+        propAnimFrame = requestAnimationFrame(loop);
+      }
+      propAnimFrame = requestAnimationFrame(loop);
+    }
+
+    // =========================================================================
+    // JEPRET FOTO & AUTO SESSION
+    // =========================================================================
+    function triggerCameraFlash() {
+      const flash = document.getElementById("camera-flash-overlay");
+      if (!flash) return;
+      flash.classList.remove("flash-active");
+      void flash.offsetWidth;
+      flash.classList.add("flash-active");
+    }
+
+    function runCountdown(seconds, labelText) {
+      return new Promise((resolve) => {
+        if (seconds <= 0) {
+          resolve();
+          return;
+        }
+        const overlay = document.getElementById("countdown-overlay");
+        const numEl = document.getElementById("countdown-number");
+        const lblEl = document.getElementById("countdown-label");
+        if (overlay) overlay.classList.remove("hidden");
+        if (lblEl) lblEl.innerText = labelText;
+
+        let remaining = seconds;
+        if (numEl) numEl.innerText = remaining;
+        playTone(523.25, 0.12);
+
+        const interval = setInterval(() => {
+          remaining--;
+          if (remaining > 0) {
+            if (numEl) numEl.innerText = remaining;
+            playTone(523.25, 0.12);
+          } else {
+            clearInterval(interval);
+            if (overlay) overlay.classList.add("hidden");
+            resolve();
+          }
+        }, 1000);
+      });
+    }
+
+    function snapFrameToSlot(slotIndex) {
+      const video = document.getElementById("camera-video");
+      const off = document.createElement("canvas");
+      off.width = 640;
+      off.height = 480;
+      const ctx = off.getContext("2d");
+
+      if (mediaStream && video && video.readyState >= 2) {
+        ctx.save();
+        if (isMirror) {
+          ctx.translate(off.width, 0);
+          ctx.scale(-1, 1);
+        }
+        const vw = video.videoWidth || 640;
+        const vh = video.videoHeight || 480;
+        const targetRatio = 4 / 3;
+        const srcRatio = vw / vh;
+        let sx = 0, sy = 0, sw = vw, sh = vh;
+        if (srcRatio > targetRatio) {
+          sw = vh * targetRatio;
+          sx = (vw - sw) / 2;
+        } else {
+          sh = vw / targetRatio;
+          sy = (vh - sh) / 2;
+        }
+        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, off.width, off.height);
+        ctx.restore();
+        drawCameraProp(ctx, off.width, off.height, activeCameraProp);
+      } else {
+        // Fallback jika kamera tidak aktif: buat pose ilustrasi lucu
+        const demo = createCuteIllustrationPose(slotIndex);
+        ctx.drawImage(demo, 0, 0);
+        drawCameraProp(ctx, off.width, off.height, activeCameraProp);
+      }
+
+      photos[slotIndex] = off;
+      triggerCameraFlash();
+      playShutterSound();
+      renderPoseSlotsBar();
+      renderPolaroidStrip();
+    }
+
+    async function captureSinglePose() {
+      if (isAutoRunning) return;
+      isAutoRunning = true;
+      await runCountdown(timerSeconds, `Siap-siap pose #${activeSlot + 1}!`);
+      snapFrameToSlot(activeSlot);
+      activeSlot = (activeSlot + 1) % poseCount;
+      renderPoseSlotsBar();
+      isAutoRunning = false;
+    }
+
+    async function startAutoBoothSession() {
+      if (isAutoRunning) return;
+      isAutoRunning = true;
+      const waitSec = timerSeconds > 0 ? timerSeconds : 2;
+      for (let i = 0; i < poseCount; i++) {
+        activeSlot = i;
+        renderPoseSlotsBar();
+        await runCountdown(waitSec, `Pose #${i + 1} dari ${poseCount}!`);
+        snapFrameToSlot(i);
+        await new Promise((r) => setTimeout(r, 450));
+      }
+      activeSlot = 0;
+      renderPoseSlotsBar();
+      isAutoRunning = false;
+    }
+
+    function handleGalleryUpload(event) {
+      const files = Array.from(event.target.files || []).slice(0, 8);
+      if (!files.length) return;
+
+      if (files.length > 6 && poseCount < 8) {
+        setPoseCount(8);
+      } else if (files.length > 4 && poseCount < 6) {
+        setPoseCount(6);
+      } else if (files.length === 4 && poseCount < 4) {
+        setPoseCount(4);
+      }
+
+      files.forEach((file, idx) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const off = document.createElement("canvas");
+            off.width = 640;
+            off.height = 480;
+            const ctx = off.getContext("2d");
+
+            const targetRatio = 4 / 3;
+            const srcRatio = img.width / img.height;
+            let sx = 0, sy = 0, sw = img.width, sh = img.height;
+            if (srcRatio > targetRatio) {
+              sw = img.height * targetRatio;
+              sx = (img.width - sw) / 2;
+            } else {
+              sh = img.width / targetRatio;
+              sy = (img.height - sh) / 2;
+            }
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, off.width, off.height);
+            photos[idx] = off;
+            renderPoseSlotsBar();
+            renderPolaroidStrip();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+      playShutterSound();
+    }
+
+    function createCuteIllustrationPose(index) {
+      const off = document.createElement("canvas");
+      off.width = 640;
+      off.height = 480;
+      const ctx = off.getContext("2d");
+
+      const palettes = [
+        ["#ffd6e0", "#ffef9f", "🐱", "🐰", "Anin Pose #1: Peace! ✌️"],
+        ["#e0fbfc", "#ffc8dd", "🐻", "🐥", "Anin Pose #2: Pipi Gemas! 🥺"],
+        ["#ede0ff", "#ffccd5", "🦊", "🐼", "Anin Pose #3: Saranghae! 🫰"],
+        ["#d8f3dc", "#ffe5ec", "🐶", "🐱", "Anin Pose #4: Ketawa Lucu! 😆"],
+        ["#ffe5d9", "#ffcad4", "🐰", "🍓", "Anin Pose #5: Hug Time! 🤗"],
+        ["#bde0fe", "#ffc8dd", "🐼", "🌸", "Anin Pose #6: Wink Manis! 😉"],
+        ["#fff3b0", "#ffccd5", "🐥", "🧸", "Anin Pose #7: Super Imut! 💖"],
+        ["#e2ece9", "#fad2e1", "🐱", "👑", "Anin Pose #8: Ratu Booth! ✨"]
+      ];
+      const [c1, c2, leftPet, rightPet, label] = palettes[index % palettes.length];
+
+      const grad = ctx.createLinearGradient(0, 0, 640, 480);
+      grad.addColorStop(0, c1);
+      grad.addColorStop(1, c2);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 640, 480);
+
+      // Dekorasi hati & bintang
+      ctx.font = "42px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("💖", 110, 95);
+      ctx.fillText("✨", 530, 95);
+
+      // Karakter lucu
+      ctx.font = "135px sans-serif";
+      ctx.fillText(leftPet, 235, 275);
+      ctx.fillText(rightPet, 405, 275);
+
+      // Label bawah
+      ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+      ctx.beginPath();
+      ctx.roundRect(120, 365, 400, 56, 28);
+      ctx.fill();
+
+      ctx.fillStyle = "#d6336c";
+      ctx.font = "bold 24px Fredoka, Quicksand, sans-serif";
+      ctx.fillText(label, 320, 401);
+
+      return off;
+    }
+
+    function loadCuteDemoPoses() {
+      for (let i = 0; i < 8; i++) {
+        photos[i] = createCuteIllustrationPose(i);
+      }
+      renderPoseSlotsBar();
+      renderPolaroidStrip();
+      playShutterSound();
+    }
+
+    function clearAllPoses() {
+      photos = [null, null, null, null, null, null, null, null];
+      activeSlot = 0;
+      renderPoseSlotsBar();
+      renderPolaroidStrip();
+      playTone(460, 0.12);
+    }
+
+    // =========================================================================
+    // KUSTOMISASI BINGKAI, FILTER, STIKER & RENDER STRIP POLAROID
+    // =========================================================================
+    function initFrameStylesGrid() {
+      const grid = document.getElementById("frame-styles-grid");
+      if (!grid) return;
+      grid.innerHTML = "";
+      CONFIG.frameCatalog.forEach((f) => {
+        const btn = document.createElement("button");
+        btn.dataset.fstyle = f.id;
+        btn.className = `frame-style-btn btn-pill text-[11px] font-bold px-3 py-1.5 rounded-full ${f.cls} ${
+          f.id === frameStyle ? "ring-2 ring-pink-500 scale-105" : ""
+        }`;
+        btn.innerText = f.label;
+        btn.onclick = () => setFrameStyle(f.id, f.name);
+        grid.appendChild(btn);
+      });
+    }
+
+    function setFrameStyle(styleId, nameText) {
+      frameStyle = styleId;
+      const lbl = document.getElementById("active-frame-name");
+      if (lbl) lbl.innerText = nameText;
+      document.querySelectorAll(".frame-style-btn").forEach((btn) => {
+        const active = btn.dataset.fstyle === styleId;
+        btn.classList.toggle("ring-2", active);
+        btn.classList.toggle("ring-pink-500", active);
+      });
+      renderPolaroidStrip();
+      playTone(720, 0.09);
+    }
+
+    function setPhotoFilter(filter) {
+      photoFilter = filter;
+      document.querySelectorAll(".filter-btn").forEach((btn) => {
+        btn.classList.toggle("pill-active", btn.dataset.filter === filter);
+      });
+      renderPolaroidStrip();
+      playTone(680, 0.09);
+    }
+
+    function getCanvasFilterString() {
+      switch (photoFilter) {
+        case "pastel":
+          return "brightness(1.08) contrast(0.92) saturate(1.18)";
+        case "rose":
+          return "brightness(1.06) sepia(0.18) saturate(1.35) hue-rotate(-10deg)";
+        case "sakura_dream":
+          return "brightness(1.09) contrast(0.94) saturate(1.25) hue-rotate(-16deg)";
+        case "vintage":
+          return "sepia(0.38) contrast(1.08) brightness(0.98)";
+        case "golden_hour":
+          return "brightness(1.07) contrast(1.05) saturate(1.3) sepia(0.22)";
+        case "cool_film":
+          return "brightness(1.03) contrast(1.08) saturate(0.9) hue-rotate(12deg)";
+        case "bw":
+          return "grayscale(1) contrast(1.18) brightness(1.04)";
+        default:
+          return "none";
+      }
+    }
+
+    function isDarkFrame() {
+      return frameStyle === "black" || frameStyle === "film" || frameStyle === "galaxy";
+    }
+
+    function isBusyPatternFrame() {
+      return ["polka", "gingham", "cherry", "hearts", "cow", "leopard", "newspaper"].includes(frameStyle);
+    }
+
+    function drawFrameBackground(ctx, w, h) {
+      const solidMap = {
+        white: "#ffffff",
+        pink: "#ffe5ec",
+        lavender: "#f3e8ff",
+        blue: "#e0f2fe",
+        mint: "#dcfce7",
+        cream: "#fef3c7",
+        black: "#18181b",
+        film: "#121215",
+        neko: "#ffe4e6",
+        newspaper: "#e7e5e4"
+      };
+
+      if (solidMap[frameStyle]) {
+        ctx.fillStyle = solidMap[frameStyle];
+        ctx.fillRect(0, 0, w, h);
+      } else if (frameStyle === "sunset") {
+        const g = ctx.createLinearGradient(0, 0, w, h);
+        g.addColorStop(0, "#ff9ebb");
+        g.addColorStop(0.5, "#ffd6a5");
+        g.addColorStop(1, "#ffcad4");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      } else if (frameStyle === "y2k") {
+        const g = ctx.createLinearGradient(0, 0, w, h);
+        g.addColorStop(0, "#c7d2fe");
+        g.addColorStop(0.5, "#fbcfe8");
+        g.addColorStop(1, "#bae6fd");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      } else if (frameStyle === "galaxy") {
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, "#1e1b4b");
+        g.addColorStop(0.5, "#311042");
+        g.addColorStop(1, "#0f172a");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#ffffff";
+        for (let s = 0; s < 55; s++) {
+          ctx.globalAlpha = 0.4 + (s % 5) * 0.12;
+          ctx.beginPath();
+          ctx.arc((s * 97) % w, (s * 131) % h, (s % 3) + 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      } else if (frameStyle === "polka") {
+        ctx.fillStyle = "#fff0f3";
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#ff8fa3";
+        for (let y = 24; y < h; y += 56) {
+          for (let x = 24; x < w; x += 56) {
+            ctx.beginPath();
+            ctx.arc(x + ((y / 56) % 2) * 28, y, 11, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (frameStyle === "gingham") {
+        ctx.fillStyle = "#f0fdfa";
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "rgba(94, 234, 212, 0.35)";
+        for (let x = 0; x < w; x += 48) ctx.fillRect(x, 0, 24, h);
+        for (let y = 0; y < h; y += 48) ctx.fillRect(0, y, w, 24);
+      } else if (frameStyle === "cherry") {
+        ctx.fillStyle = "#fff1f2";
+        ctx.fillRect(0, 0, w, h);
+        ctx.font = "28px sans-serif";
+        for (let y = 36; y < h; y += 84) {
+          for (let x = 30; x < w; x += 84) {
+            ctx.fillText("🍒", x + ((y / 84) % 2) * 40, y);
+          }
+        }
+      } else if (frameStyle === "hearts") {
+        ctx.fillStyle = "#ffe5ec";
+        ctx.fillRect(0, 0, w, h);
+        ctx.font = "26px sans-serif";
+        for (let y = 34; y < h; y += 74) {
+          for (let x = 28; x < w; x += 74) {
+            ctx.fillText("💖", x + ((y / 74) % 2) * 35, y);
+          }
+        }
+      } else if (frameStyle === "cow") {
+        ctx.fillStyle = "#fff5f7";
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#ffccd5";
+        for (let i = 0; i < 28; i++) {
+          ctx.beginPath();
+          ctx.ellipse((i * 113) % w, (i * 157) % h, 26 + (i % 15), 18 + (i % 12), i, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (frameStyle === "leopard") {
+        ctx.fillStyle = "#fef3c7";
+        ctx.fillRect(0, 0, w, h);
+        for (let i = 0; i < 34; i++) {
+          const lx = (i * 89) % w;
+          const ly = (i * 137) % h;
+          ctx.fillStyle = "#f59e0b";
+          ctx.beginPath();
+          ctx.arc(lx, ly, 14, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#78350f";
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+      }
+
+      // Lubang sproket khas Roll Film Bioskop
+      if (frameStyle === "film") {
+        ctx.fillStyle = "#e4e4e7";
+        for (let y = 24; y < h - 20; y += 44) {
+          ctx.beginPath();
+          ctx.roundRect(12, y, 18, 24, 4);
+          ctx.roundRect(w - 30, y, 18, 24, 4);
+          ctx.fill();
+        }
+      }
+    }
+
+    function drawFrameForegroundDecorations(ctx, w, topPad) {
+      if (frameStyle === "newspaper") {
+        ctx.fillStyle = "#292524";
+        ctx.font = "900 26px Fredoka, serif";
+        ctx.textAlign = "center";
+        ctx.fillText("THE DAILY LOVE TIMES • EDISI SPESIAL", w / 2, 44);
+        ctx.strokeStyle = "#44403c";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(40, 56);
+        ctx.lineTo(w - 40, 56);
+        ctx.stroke();
+      } else if (frameStyle === "neko") {
+        ctx.font = "36px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🐱🎀🐱", w / 2, topPad - 12);
+      } else if (frameStyle === "y2k") {
+        ctx.font = "28px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("💿✨ Y2K STUDIO ✨💿", w / 2, topPad - 14);
+      }
+    }
+
+    function initStickerPalette() {
+      const palette = document.getElementById("sticker-palette");
+      if (!palette) return;
+      palette.innerHTML = "";
+      const list = CONFIG.stickerCategories[activeStickerCat] || CONFIG.stickerCategories.cute;
+      list.forEach((item) => {
+        const btn = document.createElement("button");
+        const isStamp = activeStickerCat === "stamps";
+        btn.className = `btn-pill bg-white hover:bg-pink-100 border border-pink-200 rounded-xl py-2 font-bold text-pink-700 shadow-2xs ${
+          isStamp ? "col-span-2 text-[11px] px-1" : "text-xl"
+        }`;
+        btn.innerText = item;
+        btn.onclick = () => addStickerToStrip(item, isStamp ? "stamp" : "emoji");
+        palette.appendChild(btn);
+      });
+    }
+
+    function switchStickerCategory(cat) {
+      activeStickerCat = cat;
+      document.querySelectorAll(".scat-btn").forEach((btn) => {
+        btn.classList.toggle("pill-active", btn.dataset.scat === cat);
+      });
+      initStickerPalette();
+      playTone(660, 0.08);
+    }
+
+    function addStickerToStrip(value, kind = "emoji") {
+      const canvas = document.getElementById("polaroid-canvas");
+      const w = canvas ? canvas.width : 600;
+      const h = canvas ? canvas.height : 1200;
+      const id = "st_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+
+      placedStickers.push({
+        id,
+        value,
+        kind,
+        x: w * 0.5 + (Math.random() * 120 - 60),
+        y: Math.min(h - 140, 260 + placedStickers.length * 65),
+        size: kind === "stamp" ? 48 : 68,
+        rotation: (Math.random() * 0.24) - 0.12
+      });
+      selectedStickerId = id;
+      renderPolaroidStrip();
+      playTone(840, 0.1);
+    }
+
+    function resizeSelectedSticker(delta) {
+      if (!selectedStickerId && placedStickers.length) {
+        selectedStickerId = placedStickers[placedStickers.length - 1].id;
+      }
+      const st = placedStickers.find((s) => s.id === selectedStickerId);
+      if (st) {
+        st.size = Math.max(28, Math.min(150, st.size + delta));
+        renderPolaroidStrip();
+        playTone(720, 0.07);
+      }
+    }
+
+    function rotateSelectedSticker(deg) {
+      if (!selectedStickerId && placedStickers.length) {
+        selectedStickerId = placedStickers[placedStickers.length - 1].id;
+      }
+      const st = placedStickers.find((s) => s.id === selectedStickerId);
+      if (st) {
+        st.rotation = (st.rotation || 0) + (deg * Math.PI) / 180;
+        renderPolaroidStrip();
+        playTone(760, 0.07);
+      }
+    }
+
+    function deleteSelectedSticker() {
+      if (!selectedStickerId) return;
+      placedStickers = placedStickers.filter((s) => s.id !== selectedStickerId);
+      selectedStickerId = placedStickers.length ? placedStickers[placedStickers.length - 1].id : null;
+      renderPolaroidStrip();
+      playTone(480, 0.09);
+    }
+
+    function clearAllStickers() {
+      placedStickers = [];
+      selectedStickerId = null;
+      renderPolaroidStrip();
+      playTone(440, 0.1);
+    }
+
+    function setCaptionFont(fontKey) {
+      captionFontStyle = fontKey;
+      document.querySelectorAll(".cfont-btn").forEach((btn) => {
+        btn.classList.toggle("pill-active", btn.dataset.cfont === fontKey);
+      });
+      renderPolaroidStrip();
+      playTone(700, 0.08);
+    }
+
+    function toggleDateStamp() {
+      showDateStamp = !showDateStamp;
+      const btn = document.getElementById("date-stamp-btn");
+      if (btn) btn.innerText = showDateStamp ? "📅 Tanggal: On" : "📅 Tanggal: Off";
+      renderPolaroidStrip();
+      playTone(680, 0.08);
+    }
+
+    function initCaptionPresets() {
+      const bar = document.getElementById("caption-presets-bar");
+      if (!bar) return;
+      bar.innerHTML = "";
+      CONFIG.captionPresets.forEach((txt) => {
+        const btn = document.createElement("button");
+        btn.className = "btn-pill shrink-0 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 text-[11px] font-bold px-3 py-1 rounded-full";
+        btn.innerText = txt;
+        btn.onclick = () => {
+          const input = document.getElementById("strip-caption-input");
+          if (input) input.value = txt;
+          renderPolaroidStrip();
+          playTone(740, 0.08);
+        };
+        bar.appendChild(btn);
+      });
+    }
+
+    function renderPolaroidStrip(hideSelectionBox = false) {
+      const canvas = document.getElementById("polaroid-canvas");
+      if (!canvas) return;
+
+      const isTwoCol = poseCount >= 6;
+      const cols = isTwoCol ? 2 : 1;
+      const rows = Math.ceil(poseCount / cols);
+
+      const w = isTwoCol ? 820 : 600;
+      const padX = frameStyle === "film" ? 48 : 40;
+      const topPad = frameStyle === "newspaper" ? 74 : 48;
+      const gapX = 22;
+      const gapY = isTwoCol ? 22 : 26;
+      const slotW = Math.floor((w - padX * 2 - (cols - 1) * gapX) / cols);
+      const slotH = Math.round(slotW * 0.75);
+      const footerH = 195;
+      const h = topPad + rows * slotH + (rows - 1) * gapY + footerH;
+
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+
+      canvas.className = `w-full ${
+        isTwoCol ? "max-w-[350px]" : "max-w-[280px]"
+      } h-auto rounded-2xl shadow-xl cursor-grab active:cursor-grabbing touch-none`;
+
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Background Bingkai
+      drawFrameBackground(ctx, w, h);
+
+      // Border luar lembut
+      ctx.strokeStyle = isDarkFrame() ? "#3a3652" : "#ffccd5";
+      ctx.lineWidth = 6;
+      ctx.strokeRect(3, 3, w - 6, h - 6);
+
+      // 2. Render Tiap Slot Foto (1 Kolom untuk 3-4 foto, 2 Kolom untuk 6-8 foto)
+      for (let i = 0; i < poseCount; i++) {
+        const colIdx = i % cols;
+        const rowIdx = Math.floor(i / cols);
+        const x = padX + colIdx * (slotW + gapX);
+        const y = topPad + rowIdx * (slotH + gapY);
+        const cornerRadius = frameStyle === "film" ? 6 : 18;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, slotW, slotH, cornerRadius);
+        ctx.clip();
+
+        if (photos[i]) {
+          ctx.filter = getCanvasFilterString();
+          ctx.drawImage(photos[i], x, y, slotW, slotH);
+          ctx.filter = "none";
+        } else {
+          ctx.fillStyle = isDarkFrame() ? "#2d2a3e" : "#fff5f7";
+          ctx.fillRect(x, y, slotW, slotH);
+
+          ctx.fillStyle = "#ff8fa3";
+          ctx.font = `bold ${isTwoCol ? 24 : 30}px Fredoka, Quicksand, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(`📸 Pose #${i + 1}`, x + slotW / 2, y + slotH / 2 - 4);
+
+          ctx.font = `bold ${isTwoCol ? 15 : 20}px Quicksand, sans-serif`;
+          ctx.fillText(isTwoCol ? "Ambil / pilih foto" : "Ambil foto atau pilih dari galeri", x + slotW / 2, y + slotH / 2 + 26);
+        }
+        ctx.restore();
+
+        // Garis tepi tiap frame foto
+        ctx.strokeStyle = isDarkFrame() ? "rgba(255,255,255,0.25)" : "rgba(255,92,138,0.28)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(x, y, slotW, slotH, cornerRadius);
+        ctx.stroke();
+      }
+
+      drawFrameForegroundDecorations(ctx, w, topPad);
+
+      // 3. Area Tulisan Tangan & Stempel Tanggal di Bawah Strip
+      const footerTop = topPad + rows * slotH + (rows - 1) * gapY;
+      const captionInput = document.getElementById("strip-caption-input");
+      const captionText = captionInput && captionInput.value.trim()
+        ? captionInput.value.trim()
+        : CONFIG.defaultCaption;
+
+      // Kotak label lembut bila bingkai bermotif ramai
+      if (isBusyPatternFrame()) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+        ctx.beginPath();
+        ctx.roundRect(padX, footerTop + 20, w - padX * 2, 145, 22);
+        ctx.fill();
+      }
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = isDarkFrame() ? "#ffccd5" : frameStyle === "newspaper" ? "#2b2520" : "#d6336c";
+      if (captionFontStyle === "cute") {
+        ctx.font = "bold 36px Fredoka, Quicksand, sans-serif";
+      } else if (captionFontStyle === "clean") {
+        ctx.font = "bold 32px Quicksand, sans-serif";
+      } else {
+        ctx.font = "bold 46px Caveat, Fredoka, cursive";
+      }
+      ctx.fillText(captionText, w / 2, footerTop + 82);
+
+      // Sub-label nama & tanggal
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yyyy = now.getFullYear();
+      const subText = showDateStamp
+        ? `✨ ${CONFIG.namaPacar} • ${dd} . ${mm} . ${yyyy} ✨`
+        : `✨ Kawaii Photo Booth • ${CONFIG.namaPacar} ✨`;
+
+      ctx.fillStyle = isDarkFrame() ? "#b8b2d8" : "#805b78";
+      ctx.font = "bold 22px Quicksand, sans-serif";
+      ctx.fillText(subText, w / 2, footerTop + 132);
+
+      // 4. Render Stiker & Stempel Kata yang Dipasang
+      placedStickers.forEach((st) => {
+        ctx.save();
+        ctx.translate(st.x, st.y);
+        ctx.rotate(st.rotation || 0);
+
+        if (st.kind === "stamp") {
+          const fontSize = Math.round(st.size * 0.56);
+          ctx.font = `900 ${fontSize}px Fredoka, Quicksand, sans-serif`;
+          const textW = ctx.measureText(st.value).width + 34;
+          const boxH = fontSize + 22;
+
+          ctx.fillStyle = "#ffffff";
+          ctx.strokeStyle = "#ff4d6d";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.roundRect(-textW / 2, -boxH / 2, textW, boxH, 16);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#ff4d6d";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(st.value, 0, 2);
+
+          if (!hideSelectionBox && st.id === selectedStickerId) {
+            ctx.strokeStyle = "#00bbf9";
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 4]);
+            ctx.strokeRect(-textW / 2 - 6, -boxH / 2 - 6, textW + 12, boxH + 12);
+            ctx.setLineDash([]);
+          }
+        } else {
+          ctx.font = `${st.size}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(st.value, 0, 0);
+
+          if (!hideSelectionBox && st.id === selectedStickerId) {
+            ctx.strokeStyle = "#ff4d6d";
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 4]);
+            ctx.strokeRect(-st.size * 0.58, -st.size * 0.58, st.size * 1.16, st.size * 1.16);
+            ctx.setLineDash([]);
+          }
+        }
+        ctx.restore();
+      });
+    }
+
+    // =========================================================================
+    // INTERAKSI GESER STIKER DI KANVAS POLAROID
+    // =========================================================================
+    function getCanvasCoords(event) {
+      const canvas = document.getElementById("polaroid-canvas");
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (event.clientX - rect.left) * scaleX,
+        y: (event.clientY - rect.top) * scaleY
+      };
+    }
+
+    function setupStickerDragListeners() {
+      const canvas = document.getElementById("polaroid-canvas");
+      if (!canvas) return;
+
+      canvas.addEventListener("pointerdown", (e) => {
+        const pos = getCanvasCoords(e);
+        for (let i = placedStickers.length - 1; i >= 0; i--) {
+          const st = placedStickers[i];
+          const halfW = st.kind === "stamp" ? st.size * 1.6 : st.size * 0.65;
+          const halfH = st.size * 0.65;
+          if (Math.abs(pos.x - st.x) <= halfW && Math.abs(pos.y - st.y) <= halfH) {
+            selectedStickerId = st.id;
+            isDraggingSticker = true;
+            dragOffset.x = pos.x - st.x;
+            dragOffset.y = pos.y - st.y;
+            canvas.setPointerCapture(e.pointerId);
+            renderPolaroidStrip();
+            return;
+          }
+        }
+        selectedStickerId = null;
+        renderPolaroidStrip();
+      });
+
+      canvas.addEventListener("pointermove", (e) => {
+        if (!isDraggingSticker || !selectedStickerId) return;
+        const pos = getCanvasCoords(e);
+        const st = placedStickers.find((s) => s.id === selectedStickerId);
+        if (st) {
+          st.x = Math.max(30, Math.min(canvas.width - 30, pos.x - dragOffset.x));
+          st.y = Math.max(30, Math.min(canvas.height - 30, pos.y - dragOffset.y));
+          renderPolaroidStrip();
+        }
+      });
+
+      canvas.addEventListener("pointerup", () => {
+        isDraggingSticker = false;
+      });
+    }
+
+    // =========================================================================
+    // DOWNLOAD STRIP HD & SHARE WHATSAPP
+    // =========================================================================
+    function downloadPolaroidStrip() {
+      renderPolaroidStrip(true); // Sembunyikan garis seleksi stiker saat export
+      const canvas = document.getElementById("polaroid-canvas");
+      if (!canvas) return;
+
+      const link = document.createElement("a");
+      link.download = `polaroid-booth-${CONFIG.namaPacar.toLowerCase()}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+
+      renderPolaroidStrip(false);
+      playTone(987.77, 0.22, "triangle");
+    }
+
+    function shareToWhatsApp() {
+      const msg = `Halo! Anin abis foto-foto di Kawaii Photo Booth khusus Anin nih 📸💖 Bentar Anin kirim hasil strip Polaroid-nya ya!`;
+      window.open(`https://wa.me/${CONFIG.nomorWhatsApp}?text=${encodeURIComponent(msg)}`, "_blank");
+    }
+
+    // =========================================================================
+    // INISIALISASI SAAT HALAMAN DIMUAT
+    // =========================================================================
+    window.addEventListener("DOMContentLoaded", () => {
+      const titleEl = document.getElementById("page-title");
+      if (titleEl) titleEl.innerText = `Kawaii Photo Booth Khusus ${CONFIG.namaPacar} 📸`;
+
+      const mainTitleEl = document.getElementById("main-title");
+      if (mainTitleEl) mainTitleEl.innerText = `Photo Booth Khusus ${CONFIG.namaPacar} 📸`;
+
+      const captionEl = document.getElementById("strip-caption-input");
+      if (captionEl) captionEl.value = CONFIG.defaultCaption;
+
+      initCameraPropsBar();
+      initFrameStylesGrid();
+      initCaptionPresets();
+      initStickerPalette();
+      setupStickerDragListeners();
+      renderPoseSlotsBar();
+      renderPolaroidStrip();
+      startCamera();
+    });
+  </script>
+</body>
+</html>
